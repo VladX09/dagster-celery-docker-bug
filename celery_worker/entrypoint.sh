@@ -1,0 +1,1 @@
+dagster-celery worker start -A dagster_celery_docker.app -y /celery_worker/config.yaml

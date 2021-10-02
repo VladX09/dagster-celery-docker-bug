@@ -1,0 +1,116 @@
+version: "2.4"
+x-common-env: &common-env
+  POSTGRES_USER: "postgres_user"
+  POSTGRES_PASSWORD: "postgres_password"
+  POSTGRES_DB: "postgres_db"
+  DAGSTER_POSTGRES_USER: "postgres_user"
+  DAGSTER_POSTGRES_PASSWORD: "postgres_password"
+  DAGSTER_POSTGRES_DB: "postgres_db"
+
+x-image: &image
+  build:
+    context: .
+    dockerfile: ./Dockerfile
+
+services:
+  postgresql:
+    image: postgres:11
+    environment: 
+      <<: *common-env
+
+  minio:
+    image: minio/minio:latest
+    ports:
+      - "9000:9000"
+    environment:
+      - MINIO_ACCESS_KEY=minioAdmin
+      - MINIO_SECRET_KEY=minioAdmin
+    command: server /data
+    restart: always
+ 
+  createbuckets:
+    image: minio/mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      /usr/bin/mc config host add myminio http://minio:9000 minioAdmin minioAdmin;
+      /usr/bin/mc rm -r --force myminio/demo;
+      /usr/bin/mc mb myminio/demo;
+      /usr/bin/mc policy set public myminio/demo;
+      exit 0;
+      "
+
+  daemon:
+    <<: *image
+    environment: 
+      <<: *common-env
+    command:
+      - dagster-daemon
+      - run
+    restart: on-failure
+    volumes: 
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - postgresql
+      - createbuckets
+      - celery-worker
+
+  dagit:
+    <<: *image
+    environment: 
+      <<: *common-env
+    command:
+      - dagit
+      - -h
+      - "0.0.0.0"
+      - -p
+      - "3000"
+      - -w
+      - workspace.yaml
+    expose:
+      - "3000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgresql
+      - daemon
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    volumes:
+      - ./.docker/rabbitmq/etc/:/etc/rabbitmq/
+    command: sh -c "rabbitmq-plugins enable rabbitmq_management; rabbitmq-server"
+    ports:
+      - 15672:15672
+    environment:
+      RABBITMQ_ERLANG_COOKIE: 6085e2412b6fa88647466c6a81c0cea0
+      RABBITMQ_DEFAULT_USER: rabbitmq
+      RABBITMQ_DEFAULT_PASS: rabbitmq
+      RABBITMQ_DEFAULT_VHOST: dagster
+
+  celery-worker:
+    <<: *image
+    environment: 
+      <<: *common-env
+    depends_on: 
+      - rabbitmq
+    volumes: 
+      - ./celery_worker:/celery_worker
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    entrypoint: "/bin/bash"
+    command: "/celery_worker/entrypoint.sh"
+
+  pipelines:
+    <<: *image
+    image: pipelines-image
+    environment: 
+      <<: *common-env
+      DAGSTER_CURRENT_IMAGE: pipelines-image
+      AWS_ACCESS_KEY_ID: "minioAdmin"
+      AWS_SECRET_ACCESS_KEY: "minioAdmin"
+
+    volumes: 
+      - ./pipelines:/pipelines
+    command: ["dagster", "api", "grpc", "-h", "0.0.0.0", "-p", "4000", "--python-file", "/pipelines/demo.py"]

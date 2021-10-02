@@ -1,0 +1,7 @@
+dagit==0.12.12
+dagster==0.12.12
+dagster-docker==0.12.12
+dagster-graphql==0.12.12
+dagster-postgres==0.12.12
+dagster-celery-docker==0.12.12
+dagster-aws==0.12.12
