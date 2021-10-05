@@ -40,6 +40,14 @@ default_preset = dg.PresetDefinition(
                 "config": {
                     "docker": {
                         "image": "pipelines-image",
+                        "env_vars": [
+                            "DAGSTER_POSTGRES_USER",
+                            "DAGSTER_POSTGRES_PASSWORD",
+                            "DAGSTER_POSTGRES_DB",
+                            "AWS_ACCESS_KEY_ID",
+                            "AWS_SECRET_ACCESS_KEY",
+                        ],
+                        "network": "dagster-celery-docker-bug_default",
                     },
                     "broker": "pyamqp://rabbitmq:rabbitmq@rabbitmq:5672/dagster",
                 },

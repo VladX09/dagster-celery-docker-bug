@@ -6,6 +6,8 @@ x-common-env: &common-env
   DAGSTER_POSTGRES_USER: "postgres_user"
   DAGSTER_POSTGRES_PASSWORD: "postgres_password"
   DAGSTER_POSTGRES_DB: "postgres_db"
+  AWS_ACCESS_KEY_ID: "minioAdmin"
+  AWS_SECRET_ACCESS_KEY: "minioAdmin"
 
 x-image: &image
   build:
@@ -94,9 +96,6 @@ services:
     environment: 
       <<: *common-env
       DAGSTER_CURRENT_IMAGE: pipelines-image
-      AWS_ACCESS_KEY_ID: "minioAdmin"
-      AWS_SECRET_ACCESS_KEY: "minioAdmin"
-
     volumes: 
       - ./pipelines:/pipelines
     command: ["dagster", "api", "grpc", "-h", "0.0.0.0", "-p", "4000", "--python-file", "/pipelines/demo.py"]
