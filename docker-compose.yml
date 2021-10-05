@@ -28,19 +28,6 @@ services:
     command: server /data
     restart: always
  
-  createbuckets:
-    image: minio/mc
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc config host add myminio http://minio:9000 minioAdmin minioAdmin;
-      /usr/bin/mc rm -r --force myminio/demo;
-      /usr/bin/mc mb myminio/demo;
-      /usr/bin/mc policy set public myminio/demo;
-      exit 0;
-      "
-
   daemon:
     <<: *image
     environment: 
@@ -53,7 +40,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       - postgresql
-      - createbuckets
       - celery-worker
 
   dagit:
