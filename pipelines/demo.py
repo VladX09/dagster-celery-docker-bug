@@ -5,9 +5,17 @@ from dagster_aws.s3 import s3_pickle_io_manager, s3_resource
 from dagster_celery_docker.executor import celery_docker_executor
 
 
-@dg.solid
+@dg.resource
+def buggy_resource():
+    # E.g. pyspark, opencv
+    print("Hey, I'm going to ruin everything =)")
+    return 42
+
+
+@dg.solid(required_resource_keys={"buggy_resource"})
 def hello(context):
     context.log.info("Hello, world!")
+    context.log.info(context.resources.buggy_resource)
 
 
 default_mode = dg.ModeDefinition(
@@ -16,6 +24,7 @@ default_mode = dg.ModeDefinition(
     resource_defs={
         "s3": s3_resource,
         "io_manager": s3_pickle_io_manager,
+        "buggy_resource": buggy_resource,
     },
 )
 default_preset = dg.PresetDefinition(
